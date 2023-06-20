@@ -78,11 +78,11 @@ def basic_filling(df):
 def mapped_values(df,train_df):
 
     # Mapped values based on average sale price
-    mapping_dict = mean_saleprice_map(train_df,'MSSubClass')
-    df.MSSubClass = df.MSSubClass.map(mapping_dict)
+#     mapping_dict = mean_saleprice_map(train_df,'MSSubClass')
+#     df.MSSubClass = df.MSSubClass.map(mapping_dict,na_action='ignore')
 
     # Mapped values based on average sale price
-    df.MSZoning = df.MSZoning.map(mean_saleprice_map(train_df,'MSZoning'))
+#     df.MSZoning = df.MSZoning.map(mean_saleprice_map(train_df,'MSZoning'))
 
     df.Street = df.Street.map({'Pave':1,'Grvl':0})
 
@@ -95,7 +95,7 @@ def mapped_values(df,train_df):
     df.Utilities = df.Utilities.map({'ELO':0,'NoSeWa':1,'NoSewr':2,'AllPub':3})
 
     # Mapped values based on average sale price - Shouldn't have nulls
-    df.LotConfig = df.LotConfig.map(mean_saleprice_map(train_df,'LotConfig'))
+#     df.LotConfig = df.LotConfig.map(mean_saleprice_map(train_df,'LotConfig'))
 
     df.LandSlope = df.LandSlope.map({'Sev':0,'Mod':1,'Gtl':2})
 
@@ -110,7 +110,7 @@ def mapped_values(df,train_df):
     # RoofStyle One Hot Encoded
     df = pd.get_dummies(data=df,columns=['RoofStyle'])
 
-    df.RoofMatl = df.RoofMatl.map(mean_saleprice_map(train_df,'RoofMatl'))
+#     df.RoofMatl = df.RoofMatl.map(mean_saleprice_map(train_df,'RoofMatl'))
 
     # Exterior1st and Exterior2nd need to be combined as One Hot Encoded
     df = comb_encoded_columns(df,'Exterior1st','Exterior2nd')
@@ -123,7 +123,7 @@ def mapped_values(df,train_df):
     df.ExterCond = df.ExterCond.map({'Po':0,'Fa':1,'TA':2,'Gd':3,'Ex':4})
 
     # Mapped values based on average sale price
-    df.Foundation = df.Foundation.map(mean_saleprice_map(train_df,'Foundation'))
+#     df.Foundation = df.Foundation.map(mean_saleprice_map(train_df,'Foundation'))
 
     df.BsmtQual = df.BsmtQual.map({'None':0,'Po':1,'Fa':2,'TA':3,'Gd':4,'Ex':5})
 
@@ -136,7 +136,7 @@ def mapped_values(df,train_df):
     df.BsmtFinType2 = df.BsmtFinType2.map({'None':0,'Unf':1,'LwQ':2,'Rec':3,'BLQ':4,'ALQ':5,'GLQ':6})
 
     # Mapped values based on average sale price
-    df.Heating = df.Heating.map(mean_saleprice_map(train_df,'Heating'))
+#     df.Heating = df.Heating.map(mean_saleprice_map(train_df,'Heating'))
 
     df.HeatingQC = df.HeatingQC.map({'Po':0,'Fa':1,'TA':2,'Gd':3,'Ex':4})
 
@@ -177,7 +177,7 @@ def mapped_values(df,train_df):
     # SaleCondition one hot encode
     df = pd.get_dummies(data=df,columns=['SaleCondition'])
     
-    return df, mapping_dict
+    return df
 
 ## Since LotFrontage can be determined by multiple other factors, using KNN Imputer to finish filling values
 def impute_lot_frontage(df,df_type):

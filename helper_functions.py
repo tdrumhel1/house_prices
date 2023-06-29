@@ -10,9 +10,9 @@ from sklearn.neighbors import KNeighborsRegressor
 
 def mean_saleprice_map(df,column):
     
-    mapping_dict = dict(zip([i for i in df.groupby(column).agg({'SalePrice':'mean'}).sort_values(by='SalePrice').index],
+    mapping_dict = dict(zip([i for i in df.groupby(column).agg({'SalePrice':'mean'}).sort_values(by='SalePrice',ascending=False).index],
 
-    list(range(len([i for i in df.groupby(column).agg({'SalePrice':'mean'}).sort_values(by='SalePrice').index])))
+    list(range(len([i for i in df.groupby(column).agg({'SalePrice':'mean'}).sort_values(by='SalePrice',ascending=False).index])))
          
         ))
     
@@ -63,119 +63,135 @@ def basic_filling(df):
 
     df.MasVnrArea.fillna(0,inplace=True)
     
-    # Filling with mode
+    # Filling with mode/mean
     df['MSSubClass'] = df['MSSubClass'].fillna(df.MSSubClass.mode().values[0])
     df['MSZoning'] = df['MSZoning'].fillna(df.MSZoning.mode().values[0])
     df['RoofMatl'] = df['RoofMatl'].fillna(df.RoofMatl.mode().values[0])
     df['Foundation'] = df['Foundation'].fillna(df.Foundation.mode().values[0])
     df['Heating'] = df['Heating'].fillna(df.Heating.mode().values[0])
+    df['Electrical'] = df['Electrical'].fillna(df.Electrical.mode().values[0])
+    df['LotFrontage'] = df['LotFrontage'].fillna(df.LotFrontage.mean())
     
     # Adding a few additional fields
     df['total_bath'] = df['BsmtFullBath']+df['BsmtHalfBath']*.5+df['FullBath']+df['HalfBath']*.5
+    df['total_sq'] = df['TotalBsmtSF']+df['1stFlrSF']+df['2ndFlrSF']
+    df['total_finished_sq'] = df['total_sq'] - df['BsmtUnfSF'] - df['LowQualFinSF']
+    df['sold_date'] = (df.YrSold.astype('str') + df['MoSold'].astype('str').str.zfill(2)).astype(int)
+    
+    # Blanket filling the rest (1-3 missing values on minority of features) with 0 or mode
+    float_cols = list(df.dtypes[df.dtypes==float].index)
+    df[float_cols] = df[float_cols].fillna(df[float_cols].mean())
+    
+    object_cols = list(df.dtypes[df.dtypes==object].index)
+    object_dict = {k:v[0] for k, v in df[object_cols].mode().to_dict().items()}
+    df[object_cols] = df[object_cols].fillna(object_dict)
     
     return df
 
-def mapped_values(df,train_df):
+def mapped_values(df,get_dums='N'):
 
     # Mapped values based on average sale price
-#     mapping_dict = mean_saleprice_map(train_df,'MSSubClass')
-#     df.MSSubClass = df.MSSubClass.map(mapping_dict,na_action='ignore')
+    df.MSSubClass = df.MSSubClass.map({60: 0, 120: 1, 150: 2, 75: 3, 20: 4, 80: 5, 70: 6, 40: 7, 85: 8, 50: 9, 160: 10, 90: 11,190: 12, 45: 13, 180: 14, 30: 15})
 
     # Mapped values based on average sale price
-#     df.MSZoning = df.MSZoning.map(mean_saleprice_map(train_df,'MSZoning'))
+    df.MSZoning = df.MSZoning.map({'FV': 0, 'RL': 1, 'RH': 2, 'RM': 3, 'C (all)': 4})
 
-    df.Street = df.Street.map({'Pave':1,'Grvl':0})
+    df.Street = df.Street.map({'Pave':0,'Grvl':1})
 
-    df.Alley = df.Alley.map({'None':0,'Grvl':1,'Pave':2})
+    df.Alley = df.Alley.map({'None':2,'Grvl':1,'Pave':0})
 
-    df.LotShape = df.LotShape.map({'IR3':0,'IR2':1,'IR1':2,'Reg':3})
+    df.LotShape = df.LotShape.map({'IR2': 0, 'IR3': 1, 'IR1': 2, 'Reg': 3})
 
-    df.LandContour = df.LandContour.map({'Low':0,'HLS':1,'Bnk':2,'Lvl':3})
+    df.LandContour = df.LandContour.map({'HLS': 0, 'Low': 1, 'Lvl': 2, 'Bnk': 3})
 
-    df.Utilities = df.Utilities.map({'ELO':0,'NoSeWa':1,'NoSewr':2,'AllPub':3})
+    df.Utilities = df.Utilities.map({'ELO':3,'NoSeWa':2,'NoSewr':1,'AllPub':0})
 
     # Mapped values based on average sale price - Shouldn't have nulls
-#     df.LotConfig = df.LotConfig.map(mean_saleprice_map(train_df,'LotConfig'))
+    df.LotConfig = df.LotConfig.map({'CulDSac': 0, 'FR3': 1, 'Corner': 2, 'FR2': 3, 'Inside': 4})
 
-    df.LandSlope = df.LandSlope.map({'Sev':0,'Mod':1,'Gtl':2})
+    df.LandSlope = df.LandSlope.map({'Sev': 0, 'Mod': 1, 'Gtl': 2})
+    
+    df.Neighborhood = df.Neighborhood.map({'NoRidge': 0, 'NridgHt': 1, 'StoneBr': 2, 'Timber': 3, 'Veenker': 4, 'Somerst': 5, 'ClearCr': 6, 'Crawfor': 7, 'CollgCr': 8, 'Blmngtn': 9, 'Gilbert': 10, 'NWAmes': 11, 'SawyerW': 12, 'Mitchel': 13, 'NAmes': 14, 'NPkVill': 15, 'SWISU': 16, 'Blueste': 17, 'Sawyer': 18, 'OldTown': 19, 'Edwards': 20, 'BrkSide': 21, 'BrDale': 22, 'IDOTRR': 23, 'MeadowV': 24})
 
     # Condition1 and Condition2 need to be combined as One Hot Encoded
-    df = comb_encoded_columns(df,'Condition1','Condition2')
+#     df = comb_encoded_columns(df,'Condition1','Condition2')
+    # Dropping for now, since not consistent across train and test
+    df = df.drop(columns=['Condition1','Condition2'])
 
-    df.BldgType = df.BldgType.map({'Twnhs':0,'TwnhsI':0,'TwnhsE':1,'Duplex':2,'2fmCon':3,'1Fam':4})
+    df.BldgType = df.BldgType.map({'1Fam': 0, 'TwnhsE': 1, 'Twnhs': 2, 'Duplex': 3, '2fmCon': 4})
 
-    df.HouseStyle = df.HouseStyle.map({'1Story':0,'1.5Unf':1,'1.5Fin':2,'SFoyer':3,'SLvl':3,'2Story':4,\
-                                           '2.5Unf':5,'2.5Fin':6})
+    df.HouseStyle = df.HouseStyle.map({'2.5Fin': 0,'2Story': 1,'1Story': 2,'SLvl': 3,'2.5Unf': 4,
+                                         '1.5Fin': 5,'SFoyer': 6,'1.5Unf': 7})
 
-    # RoofStyle One Hot Encoded
-    df = pd.get_dummies(data=df,columns=['RoofStyle'])
+    df.RoofStyle = df.RoofStyle.map({'Shed': 0, 'Hip': 1, 'Flat': 2, 'Mansard': 3, 'Gable': 4, 'Gambrel': 5})
 
-#     df.RoofMatl = df.RoofMatl.map(mean_saleprice_map(train_df,'RoofMatl'))
+    df.RoofMatl = df.RoofMatl.map({'WdShngl': 0, 'Membran': 1, 'WdShake': 2, 'Tar&Grv': 3, 'Metal': 4, 'CompShg': 5, 'ClyTile': 6, 'Roll': 7})
 
     # Exterior1st and Exterior2nd need to be combined as One Hot Encoded
-    df = comb_encoded_columns(df,'Exterior1st','Exterior2nd')
+#     df = comb_encoded_columns(df,'Exterior1st','Exterior2nd')
+    # Dropping for now, since not consistent across train and test
+    df = df.drop(columns=['Exterior1st','Exterior2nd'])
 
     # MasVnrType One Hot Encoded
-    df.MasVnrType = df.MasVnrType.map({'None':0,'BrkCmn':1,'BrkFace':2,'Stone':3})
+    df.MasVnrType = df.MasVnrType.map({'Stone': 0, 'BrkFace': 1, 'None': 2, 'BrkCmn': 3})
 
-    df.ExterQual = df.ExterQual.map({'Po':0,'Fa':1,'TA':2,'Gd':3,'Ex':4})
+    df.ExterQual = df.ExterQual.map({'Po':4,'Fa':3,'TA':2,'Gd':1,'Ex':0})
 
-    df.ExterCond = df.ExterCond.map({'Po':0,'Fa':1,'TA':2,'Gd':3,'Ex':4})
-
-    # Mapped values based on average sale price
-#     df.Foundation = df.Foundation.map(mean_saleprice_map(train_df,'Foundation'))
-
-    df.BsmtQual = df.BsmtQual.map({'None':0,'Po':1,'Fa':2,'TA':3,'Gd':4,'Ex':5})
-
-    df.BsmtCond = df.BsmtCond.map({'None':0,'Po':1,'Fa':2,'TA':3,'Gd':4,'Ex':5})
-
-    df.BsmtExposure = df.BsmtExposure.map({'None':0,'No':1,'Mn':2,'Av':3,'Gd':4})
-
-    df.BsmtFinType1 = df.BsmtFinType1.map({'None':0,'Unf':1,'LwQ':2,'Rec':3,'BLQ':4,'ALQ':5,'GLQ':6})
-
-    df.BsmtFinType2 = df.BsmtFinType2.map({'None':0,'Unf':1,'LwQ':2,'Rec':3,'BLQ':4,'ALQ':5,'GLQ':6})
+    df.ExterCond = df.ExterCond.map({'Po':4,'Fa':3,'TA':2,'Gd':1,'Ex':0})
 
     # Mapped values based on average sale price
-#     df.Heating = df.Heating.map(mean_saleprice_map(train_df,'Heating'))
+    df.Foundation = df.Foundation.map({'PConc': 0, 'Wood': 1, 'Stone': 2, 'CBlock': 3, 'BrkTil': 4, 'Slab': 5})
 
-    df.HeatingQC = df.HeatingQC.map({'Po':0,'Fa':1,'TA':2,'Gd':3,'Ex':4})
+    df.BsmtQual = df.BsmtQual.map({'None':5,'Po':4,'Fa':3,'TA':2,'Gd':1,'Ex':0})
 
-    df.CentralAir = df.CentralAir.map({'N':0,'Y':1})
+    df.BsmtCond = df.BsmtCond.map({'None':5,'Po':4,'Fa':3,'TA':2,'Gd':1,'Ex':0})
 
-    df.Electrical = df.Electrical.map({'FuseP':0,'FuseF':1,'Mixed':2,'FuseA':3,'SBrkr':4})
+    df.BsmtExposure = df.BsmtExposure.map({'None':4,'No':3,'Mn':2,'Av':1,'Gd':0})
+
+    df.BsmtFinType1 = df.BsmtFinType1.map({'GLQ': 0, 'Unf': 1, 'ALQ': 2, 'LwQ': 3, 'BLQ': 4, 'Rec': 5, 'None': 6})
+
+    # Doesn't match sales price averages, but more intuitive
+    df.BsmtFinType2 = df.BsmtFinType2.map({'GLQ': 0, 'Unf': 1, 'ALQ': 2, 'LwQ': 3, 'BLQ': 4, 'Rec': 5, 'None': 6})
+
+    # Mapped values based on average sale price
+    df.Heating = df.Heating.map({'GasA': 0, 'GasW': 1, 'OthW': 2, 'Wall': 3, 'Grav': 4, 'Floor': 5})
+
+    df.HeatingQC = df.HeatingQC.map({'Po':4,'Fa':3,'TA':2,'Gd':1,'Ex':0})
+
+    df.CentralAir = df.CentralAir.map({'N':1,'Y':0})
+
+    df.Electrical = df.Electrical.map({'SBrkr': 0, 'FuseA': 1, 'FuseF': 2, 'FuseP': 3, 'Mix': 4})
     df.Electrical.fillna(2,inplace=True) # Filling one missing value with average
 
-    df.KitchenQual = df.KitchenQual.map({'Po':0,'Fa':1,'TA':2,'Gd':3,'Ex':4})
+    df.KitchenQual = df.KitchenQual.map({'Po':4,'Fa':3,'TA':2,'Gd':1,'Ex':0})
 
-    df.Functional = df.Functional.map({'Sal':0,'Sev':1,'Maj2':2,'Maj1':3,'Mod':4,'Min2':5,'Min1':6,'Typ':7})
+    # Doesn't match sales price averages, but more intuitive
+    df.Functional = df.Functional.map({'Sal':7,'Sev':6,'Maj2':5,'Maj1':4,'Mod':3,'Min2':2,'Min1':1,'Typ':0})
 
-    df.FireplaceQu = df.FireplaceQu.map({'None':0,'Po':1,'Fa':2,'TA':3,'Gd':4,'Ex':5})
+    df.FireplaceQu = df.FireplaceQu.map({'None':4,'Po':5,'Fa':3,'TA':2,'Gd':1,'Ex':0})
 
-    df.GarageType = df.GarageType.map({'None':0,'Detchd':1,'CarPort':2,'BuiltIn':3,'Basment':4,'Attchd':5,
-                                            '2Types':6})
+    df.GarageType = df.GarageType.map({'BuiltIn': 0,'Attchd': 1,'Basment': 2,'2Types': 3,'Detchd': 4,
+                                         'CarPort': 5,'None': 6})
 
-    df.GarageFinish = df.GarageFinish.map({'None':0,'Unf':1,'RFn':2,'Fin':3})
+    df.GarageFinish = df.GarageFinish.map({'None':3,'Unf':2,'RFn':1,'Fin':0})
 
-    df.GarageQual = df.GarageQual.map({'None':0,'Po':1,'Fa':2,'TA':3,'Gd':4,'Ex':5})
+    df.GarageQual = df.GarageQual.map({'None':4,'Po':5,'Fa':3,'TA':2,'Gd':1,'Ex':0})
 
-    df.GarageCond = df.GarageCond.map({'None':0,'Po':1,'Fa':2,'TA':3,'Gd':4,'Ex':5})
+    # Doesn't match sales price averages, but more intuitive
+    df.GarageCond = df.GarageCond.map({'None':5,'Po':4,'Fa':3,'TA':2,'Gd':1,'Ex':0})
 
-    df.PavedDrive = df.PavedDrive.map({'N':0,'P':1,'Y':2})
+    df.PavedDrive = df.PavedDrive.map({'N':2,'P':1,'Y':0})
 
-    df.PoolQC = df.PoolQC.map({'None':0,'Fa':1,'TA':2,'Gd':3,'Ex':4})
+    df.PoolQC = df.PoolQC.map({'None':4,'Fa':3,'TA':2,'Gd':1,'Ex':0})
 
-    df.Fence = df.Fence.map({'None':0,'MnWw':1,'GdWo':2,'MnPrv':3,'GdPrv':4})
+    df.Fence = df.Fence.map({'None': 0, 'GdPrv': 1, 'MnPrv': 2, 'GdWo': 3, 'MnWw': 4})
+    
+    df.SaleCondition = df.SaleCondition.map({'Partial': 0, 'Normal': 1, 'Alloca': 2, 'Family': 3, 'Abnorml': 4, 'AdjLand': 5})
 
-    # MiscFeature pretty low, so exclude or one hot encode
-    df = pd.get_dummies(data=df,columns=['MiscFeature'])
+    df.SaleType = df.SaleType.map({'New': 0, 'Con': 1, 'CWD': 2, 'ConLI': 3, 'WD': 4, 'COD': 5, 'ConLw': 6, 'ConLD': 7, 'Oth': 8})
 
-    # MiscVal probably drop
-
-    # SaleType one hot encode
-    df = pd.get_dummies(data=df,columns=['SaleType'])
-
-    # SaleCondition one hot encode
-    df = pd.get_dummies(data=df,columns=['SaleCondition'])
+    # Removing this feature with minimal data
+    df = df.drop(columns=['MiscFeature'])
     
     return df
 

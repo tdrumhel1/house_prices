@@ -17,16 +17,18 @@ def mean_saleprice_map(df,column):
         ))
     
     return mapping_dict
-    
+
 def comb_encoded_columns(df,column1,column2):
     
-    encoded_df = pd.get_dummies(df[column1]).add(pd.get_dummies(df[column2]),fill_value=0).replace({2:1})
+#     encoded_df = pd.get_dummies(df[column1]).add(pd.get_dummies(df[column2]),fill_value=0).replace({2:1})
     
     return df.join(pd.get_dummies(df[column1]).add(pd.get_dummies(df[column2]),fill_value=0)\
            .replace({2:1})).drop([column1,column2],axis=1)
 
 # Some basic fillling
 def basic_filling(df):
+
+    # Generalize fill types by list
 
     df.Alley.fillna('None',inplace=True)
     
@@ -40,7 +42,7 @@ def basic_filling(df):
     df.MiscFeature.fillna('None',inplace=True)
 
     df.GarageType.fillna('None',inplace=True)
-    
+
     df.GarageYrBlt.fillna(0,inplace=True)
 
     df.GarageFinish.fillna('None',inplace=True)
@@ -81,14 +83,16 @@ def basic_filling(df):
     # Blanket filling the rest (1-3 missing values on minority of features) with 0 or mode
     float_cols = list(df.dtypes[df.dtypes==float].index)
     df[float_cols] = df[float_cols].fillna(df[float_cols].mean())
-    
+
     object_cols = list(df.dtypes[df.dtypes==object].index)
     object_dict = {k:v[0] for k, v in df[object_cols].mode().to_dict().items()}
     df[object_cols] = df[object_cols].fillna(object_dict)
-    
+
     return df
 
 def mapped_values(df,get_dums='N'):
+    
+    # Can let Label Encoder encode non-ordinal features and see if the model is better or worse (does it matter?)
 
     # Mapped values based on average sale price
     df.MSSubClass = df.MSSubClass.map({60: 0, 120: 1, 150: 2, 75: 3, 20: 4, 80: 5, 70: 6, 40: 7, 85: 8, 50: 9, 160: 10, 90: 11,190: 12, 45: 13, 180: 14, 30: 15})
@@ -110,7 +114,7 @@ def mapped_values(df,get_dums='N'):
     df.LotConfig = df.LotConfig.map({'CulDSac': 0, 'FR3': 1, 'Corner': 2, 'FR2': 3, 'Inside': 4})
 
     df.LandSlope = df.LandSlope.map({'Sev': 0, 'Mod': 1, 'Gtl': 2})
-    
+
     df.Neighborhood = df.Neighborhood.map({'NoRidge': 0, 'NridgHt': 1, 'StoneBr': 2, 'Timber': 3, 'Veenker': 4, 'Somerst': 5, 'ClearCr': 6, 'Crawfor': 7, 'CollgCr': 8, 'Blmngtn': 9, 'Gilbert': 10, 'NWAmes': 11, 'SawyerW': 12, 'Mitchel': 13, 'NAmes': 14, 'NPkVill': 15, 'SWISU': 16, 'Blueste': 17, 'Sawyer': 18, 'OldTown': 19, 'Edwards': 20, 'BrkSide': 21, 'BrDale': 22, 'IDOTRR': 23, 'MeadowV': 24})
 
     # Condition1 and Condition2 need to be combined as One Hot Encoded
